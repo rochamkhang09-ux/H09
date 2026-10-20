@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>App Vẽ Của Tôi</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+            text-align: center;
+        }
+        h2 { margin: 15px 0 10px 0; font-family: sans-serif; color: #333; }
+        canvas {
+            background: #ffffff;
+            border: 2px solid #333;
+            border-radius: 10px;
+            touch-action: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        button {
+            margin-top: 12px;
+            padding: 10px 25px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: none;
+            background: #ff4757;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+
+    <h2>🎨 App Vẽ Của Tôi</h2>
+    <canvas id="paintCanvas" width="320" height="460"></canvas>
+    <br>
+    <button onclick="clearCanvas()">Xóa Màn Hình</button>
+
+    <script>
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#2e86de';
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function startDraw(e) {
+            drawing = true;
+            const pos = getPos(e);
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+            const pos = getPos(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+        }
+
+        function stopDraw() {
+            drawing = false;
+        }
+
+        canvas.addEventListener('touchstart', startDraw);
+        canvas.addEventListener('touchmove', draw);
+        canvas.addEventListener('touchend', stopDraw);
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    </script>
+</body>
+</html>
