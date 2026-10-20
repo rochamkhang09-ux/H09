@@ -1,0 +1,17 @@
+
+{
+  "short_name": "AppVePro",
+  "name": "Ứng Dụng Vẽ Phác Thảo Pro",
+  "icons": [
+    {
+      "src": "https://flaticon.com",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/H09/index.html",
+  "background_color": "#121212",
+  "theme_color": "#1e1e1e",
+  "display": "standalone",
+  "orientation": "portrait"
+}
