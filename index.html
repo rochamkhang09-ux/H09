@@ -2,88 +2,260 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>App Vẽ Của Tôi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ứng Dụng Vẽ Phác Thảo Xịn Sò</title>
     <style>
-        body {
+        * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            overflow: hidden;
-            background-color: #f0f0f0;
-            text-align: center;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        h2 { margin: 15px 0 10px 0; font-family: sans-serif; color: #333; }
-        canvas {
-            background: #ffffff;
-            border: 2px solid #333;
-            border-radius: 10px;
-            touch-action: none;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        /* Thanh công cụ phía trên */
+        .toolbar {
+            background-color: #1e1e1e;
+            padding: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid #333;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .tool-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #2a2a2a;
+            padding: 4px 10px;
+            border-radius: 8px;
+        }
+        label {
+            font-size: 12px;
+            color: #aaa;
+        }
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: none;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+        }
+        input[type="range"] {
+            width: 80px;
+            accent-color: #ff4757;
         }
         button {
-            margin-top: 12px;
-            padding: 10px 25px;
-            font-size: 16px;
-            border-radius: 6px;
-            border: none;
-            background: #ff4757;
+            background-color: #2f3542;
             color: white;
+            border: none;
+            padding: 8px 14px;
+            font-size: 13px;
             font-weight: bold;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        button.btn-clear {
+            background-color: #ff4757;
+        }
+        button.btn-clear:hover {
+            background-color: #ff6b81;
+        }
+        button.btn-save {
+            background-color: #2ed573;
+        }
+        button.btn-save:hover {
+            background-color: #7bed9f;
+        }
+        /* Khu vực vùng vẽ Canvas */
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            background-color: #1e1e1e;
+            margin: 10px;
+            border-radius: 12px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            background-color: #ffffff;
+            width: 100%;
+            height: 100%;
+            touch-action: none; /* Ngăn chặn cuộn trang khi đang vẽ trên điện thoại */
         }
     </style>
 </head>
 <body>
 
-    <h2>🎨 App Vẽ Của Tôi</h2>
-    <canvas id="paintCanvas" width="320" height="460"></canvas>
-    <br>
-    <button onclick="clearCanvas()">Xóa Màn Hình</button>
+    <div class="toolbar">
+        <div class="tool-group">
+            <label>Màu sắc:</label>
+            <input type="color" id="colorPicker" value="#000000">
+        </div>
+        
+        <div class="tool-group">
+            <label>Nét vẽ:</label>
+            <input type="range" id="lineWidth" min="1" max="20" value="5">
+            <span id="widthVal" style="font-size: 12px; min-width: 15px;">5</span>
+        </div>
+
+        <button class="btn-clear" id="clearBtn">🧹 Xóa sạch</button>
+        <button class="btn-save" id="saveBtn">💾 Lưu ảnh</button>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="paintCanvas"></canvas>
+    </div>
 
     <script>
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
-        let drawing = false;
+        const colorPicker = document.getElementById('colorPicker');
+        const lineWidthInput = document.getElementById('lineWidth');
+        const widthVal = document.getElementById('widthVal');
+        const clearBtn = document.getElementById('clearBtn');
+        const saveBtn = document.getElementById('saveBtn');
 
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#2e86de';
+        let isDrawing = false;
 
-        function getPos(e) {
+        // Hàm tự động căn chỉnh kích thước Canvas khớp hoàn toàn với màn hình hiển thị
+        function resizeCanvas() {
+            // Tạo một bản lưu tạm thời để không bị mất nét vẽ cũ khi xoay màn hình điện thoại
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            tempCtx.drawImage(canvas, 0, 0);
+
+            // Cập nhật kích thước thực tế
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+
+            // Đặt lại nền trắng cho canvas
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Vẽ lại các nét cũ lên kích thước mới
+            ctx.drawImage(tempCanvas, 0, 0);
+            
+            // Thiết lập cấu hình nét vẽ mượt mà
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        // Chạy lần đầu ngay khi load trang
+        setTimeout(resizeCanvas, 100);
+
+        // Lấy tọa độ chính xác bất kể là chuột hay ngón tay chạm cảm ứng
+        function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            // Nếu là sự kiện cảm ứng chạm (Touch)
+            if (e.touches && e.touches.length > 0) {
+                return {
+                    x: e.touches[0].clientX - rect.left,
+                    y: e.touches[0].clientY - rect.top
+                };
+            }
+            // Nếu là sự kiện chuột (Mouse)
             return {
-                x: clientX - rect.left,
-                y: clientY - rect.top
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
             };
         }
 
-        function startDraw(e) {
-            drawing = true;
-            const pos = getPos(e);
+        // Bắt đầu vẽ
+        function startDrawing(e) {
+            isDrawing = true;
+            const coords = getCoordinates(e);
             ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-        }
-
-        function draw(e) {
-            if (!drawing) return;
-            const pos = getPos(e);
-            ctx.lineTo(pos.x, pos.y);
+            ctx.moveTo(coords.x, coords.y);
+            
+            // Cập nhật thông số màu và nét theo thời gian thực trước khi vẽ
+            ctx.strokeStyle = colorPicker.value;
+            ctx.lineWidth = lineWidthInput.value;
+            
+            // Vẽ một điểm chấm ngay tại vị trí vừa chạm
+            ctx.lineTo(coords.x, coords.y);
             ctx.stroke();
+            e.preventDefault();
         }
 
-        function stopDraw() {
-            drawing = false;
+        // Đang di chuyển ngón tay/chuột để vẽ
+        function draw(e) {
+            if (!isDrawing) return;
+            const coords = getCoordinates(e);
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+            e.preventDefault();
         }
 
-        canvas.addEventListener('touchstart', startDraw);
-        canvas.addEventListener('touchmove', draw);
-        canvas.addEventListener('touchend', stopDraw);
-
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Dừng vẽ
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.beginPath();
         }
+
+        // Tích hợp sự kiện chuột (Cho máy tính)
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseleave', stopDrawing);
+
+        // Tích hợp sự kiện cảm ứng (Cho điện thoại thông minh/máy tính bảng)
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing);
+
+        // Hiển thị số kích thước nét vẽ khi kéo thanh trượt
+        lineWidthInput.addEventListener('input', () => {
+            widthVal.textContent = lineWidthInput.value;
+        });
+
+        // Tính năng xóa sạch bảng
+        clearBtn.addEventListener('click', () => {
+            if (confirm('Bạn có chắc chắn muốn xóa toàn bộ nét vẽ không?')) {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        });
+
+        // Tính năng lưu và tải ảnh về thiết bị
+        saveBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'buc-tranh-cua-toi.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
     </script>
 </body>
 </html>
